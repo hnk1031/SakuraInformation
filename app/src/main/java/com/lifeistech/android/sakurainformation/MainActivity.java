@@ -1,15 +1,22 @@
 package com.lifeistech.android.sakurainformation;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.ListView;
 
+import com.nifty.cloud.mb.core.DoneCallback;
 import com.nifty.cloud.mb.core.NCMB;
+import com.nifty.cloud.mb.core.NCMBAcl;
 import com.nifty.cloud.mb.core.NCMBException;
+import com.nifty.cloud.mb.core.NCMBFile;
 import com.nifty.cloud.mb.core.NCMBObject;
 import com.nifty.cloud.mb.core.NCMBQuery;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -43,6 +50,9 @@ public class MainActivity extends AppCompatActivity {
             NCMBError(error);
         }
 
+        //表示データの追加方法
+        set("井の頭公園","image.jpg",R.drawable.image);
+
     }
 
     //エラー処理
@@ -58,5 +68,55 @@ public class MainActivity extends AppCompatActivity {
         Log.e("error",sb.toString());
     }
 
+    //表示データの追加
+    public void set(String placeName, String fileName, int imageID) {
+        try {
+            //初期化
+            NCMB.initialize(this,APPLICATION_KEY,CLIENT_KEY);
+            NCMBObject obj =new NCMBObject("SakuraClass");
+
+            //データの追加
+            obj.put("data","sakura");
+            obj.put("likeData","0");
+            obj.put("name",placeName);
+            obj.put("imageName",fileName);
+            obj.save();
+
+            //画像をサーバーに送信
+            upImage(imageID, fileName);
+        } catch (Exception error) {
+
+            //追加失敗時の処理
+            NCMBError(new NCMBException(error));
+        }
+    }
+
+    //画像の送信
+    public void upImage(int imageID, String fileName) {
+
+        //画像データ取得
+        Bitmap image = BitmapFactory.decodeResource(getResources(),imageID);
+        ByteArrayOutputStream byteArrayStream = new ByteArrayOutputStream();
+        image.compress(Bitmap.CompressFormat.PNG,0,byteArrayStream);
+        byte[] data = byteArrayStream.toByteArray();
+
+        //ACL 読み込み:可 , 書き込み:不可
+        NCMBAcl acl = new NCMBAcl();
+        acl.setPublicReadAccess(true);
+        acl.setPublicWriteAccess(false);
+
+        //画像の送信
+        final NCMBFile file= new NCMBFile(fileName, data, acl);
+        file.saveInBackground(new DoneCallback() {
+            @Override
+            public void done(NCMBException error) {
+                if (error != null) {
+                    //送信失敗時の処理
+                    NCMBError(error);
+                }
+
+            }
+        });
+    }
 
 }
